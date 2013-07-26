@@ -1,0 +1,7 @@
+V -t * -v 1.a05
+n -t * -s 14194 -c red -i black
+n -t * -s 14193 -c red -i black
+n -t * -s 14192 -c red -i black
+l -t * -s 14193 -d 14192 -c blue
+l -t * -s 14193 -d 14194 -c blue
+l -t * -s 14192 -d 14194 -c blue

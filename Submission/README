@@ -1,0 +1,34 @@
+                                         CS 551 Fall 2012 Final Project Part 1
+=========================================================================================================================================										 
+Team Members:
+Sree Balaji Varadharajan -USC ID:4888549097
+Vibha V Uppin -USC ID:7893691436
+
+Files Attached:
+read_write.cpp
+sv_node.cpp
+makefile
+sv_node.h
+utilities.cpp
+common.h
+README
+
+
+Design and Compilation:
+To compile the program please use gmake sv_node.
+To execute the program sv_node b1-n00.out.
+
+sv_node.cpp parses the startup configuration file and creates  userinput ,timer ,server,client threads.
+The node depending upon if it is a beacon node or not, sends a connection request to the other beacon nodes from the config file.
+Once the connection between two nodes is established , corresponding server, client threads trying to connect to the same nodes are deleted.
+Beacon nodes send a hello message to each other and a non-beacon node send a join request message, if it does not get enough responses
+it terminates itself. Periodically every keepalivetimeout/2 (i.e 30s) keepalive messages are sent out from every node and on not receiving any 
+any message from a particular node untill 60s,it closes its connection to the node.
+Userinput thread handles the user commandline interface for status nieghbours.
+TempRead thread is used to handle join requests and the condition where a node does not get enough join responses to its requests, it terminates itself.
+Each request type, response type, Common Header has its own datastructure in the common.h file.
+utilities.h file has functions to do the logging, check the duplicate packets and drop them.
+
+References:
+http://www.cplusplus.com/reference/stl/map/find/ -Referred this link to sort the join responses by distance values
+										 
