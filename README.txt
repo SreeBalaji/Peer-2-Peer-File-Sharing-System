@@ -381,26 +381,6 @@ Here is an example (<CR><LF>'s have been left out and the backslashes have been 
     000002100000000000000810000000000000200002000200 \
     0000000000000000
  
-Routing
-On messages that require flooding, you must make sure that a message is not sent over the same link more than once. Let us consider an example using the following graph.
- Figure 1 
- 
-Figure 1: Example network connection.
-Imagine yourself as node 1 in the above diagram. You have direct connections to nodes 2, 3, 4, and 5. You have reachable hosts at nodes 2 through 5 and 8 through 13.
-
-Node 99 connects to you and the first message you receive from it is a join request message (function 0xFC) with a message ID of x in the header. You classify this connection as a temporary connection (shown as a dotted line in Figure 1 above), meaning that the only messages you will send over this connection are join response messages responding to [UOID x].)
-Lookup in your message routing table [UOID x].
-Lookup failed? Save [UOID x] in the routing table and record that it was received from node 99 over this temporary connection.
-Respond with a join response (0xFB), with the UOID field being x to node 99.
-Send the function 0xFC message to nodes 2, 3, 4, and 5 (not 99).
-Node 3 will respond with a join response (0xFB), with the UOID field being x.
-Forward the message to whoever in the routing table that has [UOID x]. Since this message is being routed (i.e., this is a response) and not flooded, there is no need to check if it is a duplicate, as routed messages do not make loops.
-Do the same thing with responses from 2, 4 and 5.
-Since 3 thru 5 will also pass the message on to 8 thru 13, you'll also get a 0xFB from them.
-Problem: Node 3 is connected to node 9 which is connected to node 10 which is connected to node 4 which is connected to node 1! This would not cause a problem. For example, if node 1 receive a message from node 4 with message ID x, it looks up x in its routing table and will be able to find it. Since it's a duplicate message, node 1 drops the message, it does not respond to node 4, and it does not forward it to anyone.
-The above implies that a node should keep message UOIDs in memory and have an efficient way to see if a message UOID has been seen before. Efficient here is defined as O(log(n)), where n is the number of message UOIDs in your data structure. (Please note that O(log(n)) is not required, although it's nice to have.) In addition, an UOID entry should timeout approximately MsgLifetime seconds after it has been inserted into the data structure. You should devise a way to handle this expiration efficiently (although it is not a requirement). If you have done something to make these operations efficient, please make sure you document document them in the README file of your submission.
-
- 
 TTL
 The basic idea here is that a message (or message in our case) is stamped with a TTL when it is sent out. Then, each host which receives this message decrements the TTL. If the TTL is zero, the message is not forwarded. Your program should work similarly. Hence, in your project, when a NEW message is sent from a node, the TTL is set by that node to whatever is indicated in its configuration file. When the message is received by the next node, the TTL is decremented. Then that TTL is checked against the forwarding node's TTL (i.e., in its configuration file). The lower of the two numbers is placed in the outgoing TTL field. If the outgoing TTL is zero, the message is not forwarded.
  
@@ -673,7 +653,6 @@ To shutdown the node, a user should enter:
   shutdown
 Upon receiving this user command, the node should send itself a SIGTERM signal by calling kill(). The node should subsequently free up all resources and shutdown.
 The commandline interface must not allow another command to run if it is waiting for response messages. Messages that have responses are status, search, and get. The user can interrupt (and terminate) these commands by pressing ^C (Control-c) on the keyboard before these commands are completed. ^C (Control-c) should never cause your program to terminate.
-
  
 INI File Format
 The basic format of a .ini file is as follows:
@@ -727,43 +706,3 @@ If the existing file is in the permanent space, then you are done.
 
 If the existing file is in the cache space, its status should be changed so that it is "moved" to the permanent space (you should also do whatever adjustments that are necessary).
 
- 
-Test Data
-The test data used to test part (1) is available.
-The test data used to test part (2) is also available.
-
-Please do not use the port numbers in the testdata. Please only use ports that are assigned to you.
-
- 
-Project Report
-In the README file which you will submit, please include a description of your program flow and any major design decisions you have made (e.g., how many threads you have and what do they do). Please do not repeat anything that is already in this spec.
-You are strongly encourage to have good comments in your code.
-
- 
-Grading Guidelines
-Part (1) grading guidelines has been made available.
-Part (2) grading guidelines has been made available.
-
-Please do not use the port numbers in the grading guidelines. Please only use ports that are assigned to you. Your code is suppose to work with any port numbers above 1024. Your code must not check if the port numbers are assigned to you because your code needs to work with the (unknown) port numbers used during grading.
-
-Please run the scripts in the grading guidelines on nunki.usc.edu. It is possible that there are bugs in the guidelines. If you find bugs, please let the instructor know as soon as possible.
-
-Finally, the grading guidelines is the only grading procedure we will use to grade your program. No other grading procedure will be used. We may change testing data for grading and may change the commands to match the data. (We may make minor changes if we discover bugs in the script or things that we forgot to test.) It is strongly recommended that you run your code through the scripts in the grading guidelines.
-
- 
-Miscellaneous
-You are required to use separate compilation to compile your source code. You must divide your source code into separate source files in a logical way. You also must not put the bulk of your code in header files!
-A SERVANT node must be implemented as a single process. If you are not familiar with pthreads, you should read the Pthreads Programming book mentioned in the recommanded textbook section of the Course Description.
-Your must not do busy-wait! If you run "top" from the commandline and you see that your program is taking up one of the top spots in CPU percentages and show high percentages, this is considered busy-wait. You will lose a lot of points if your program does busy-waiting.
-It's quite easy to find the offending code. If you run your program from the debugger, wait a few seconds, then type <Cntrl+C>. Most likely, your program will break inside your busy-waiting loop! An easy fix is to call select() to sleep for 100 millisecond before you loop again.
-
-Some people are having trouble with connect(). Here's some information that may help you.
-Please note that you if you fail to connect to another node for whatever reason (e.g., the node is not up), you must get a new socket (by calling socket()) the next time you try to connect.
-
-Some papers about other peer-to-peer systems are in the class reading list.
-For part (2), the maximum size of a memory buffer is limited to 8,192 bytes. There is no limit for part (1).
-If you don't have a favorite binary search tree, you might want to checkout GNU's libavl.
-If you don't have a favorite INI file parser or a string based hash table data structure, you might want to checkout Nicolas Devillard's iniparser (and modify it if necessary).
-If you have .nfs* files you cannot remove, please see notes on .nfs files.
- 
-[Last updated Tue Nov 27 2012]    [Please see copyright regarding copying.]
