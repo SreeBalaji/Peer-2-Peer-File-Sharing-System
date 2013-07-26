@@ -103,6 +103,65 @@ bool thePacketIsDuplicate(struct commonHeader_struct cHeader){
 	return flag;
 }
 
+void forwardThisPacket(int exceptThisConnection,struct connection_struct connectionDataTobeForwarded){
+	unsigned int i = 0;
+	pthread_mutex_lock(&connection_mutex);
+				
+	for(i = 0;i<noOfConnections;i++){
+		if((int)i != exceptThisConnection){
+			
+			sendProcedure(i);
+			//printf(" READ THREAD %d : Forwarding the request \n",argForThread->ID);
+			//connections[i].cHeader = connectionDataTobeForwarded.cHeader;
+			
+			memcpy(connections[i].cHeader.UOID,connectionDataTobeForwarded.cHeader.UOID,20);
+			connections[i].s_r_f = connectionDataTobeForwarded.s_r_f;
+			connections[i].cHeader.TTL = connectionDataTobeForwarded.cHeader.TTL;
+			connections[i].cHeader.msgType = connectionDataTobeForwarded.cHeader.msgType;
+			connections[i].cHeader.dataLength = connectionDataTobeForwarded.cHeader.dataLength;
+			
+			if(connections[i].cHeader.msgType == (unsigned char)JNRQ)
+				connections[i].joinRequestMsg = connectionDataTobeForwarded.joinRequestMsg;
+			else if(connections[i].cHeader.msgType == (unsigned char)STRQ)
+				connections[i].statusRequestMsg = connectionDataTobeForwarded.statusRequestMsg;
+				
+			//printf(" READ THREAD %d : Signalling interaction CV of Connection %d \n",argForThread->ID,i);
+			
+			pthread_cond_signal(&connections[i].writeThread_cond);
+			//printf(" READ THREAD %d : Waiting in the interaction CV of Connection %d \n",argForThread->ID,i);
+			pthread_cond_wait(&connections[i].writeThread_cond,&connections[i].writeThread_mutex);
+			//printf(" READ THREAD %d : Signalling interaction CV of Connection %d \n",argForThread->ID,i);
+			pthread_cond_signal(&connections[i].writeThread_cond);
+			pthread_mutex_unlock(&connections[i].writeThread_mutex);
+		}
+	}
+	pthread_mutex_unlock(&connection_mutex);
+	return;
+}
+	
+bool UOIDCompare(unsigned char *UOID1,unsigned char *UOID2,int count){
+	uint32_t a,b;
+	int equal = 0;
+	int i = 0;
+	for(i=0;i<count;i++){
+		a = (uint32_t)UOID1[i];
+		b = (uint32_t)UOID2[i];
+		if(a == b){
+			equal++;
+			//printf(" THREAD : UOID didnt match \n");
+		}
+	}
+	if(equal == 20)
+		return 0;
+	return 1;
+}
+
+double secSinceLastMessage(){
+	struct timeval time;
+	gettimeofday(&time,NULL);
+	return (time.tv_sec+(time.tv_usec/1000000.0));
+}
+
 char *printUOID(unsigned char *UOID){
 	char *temp = new char[8];
 	int j = 0;
@@ -251,7 +310,6 @@ void readInitFile(){
 	//printf(" %s:%d \n",neighbor_nodes[i].hostname,neighbor_nodes[i].port);
 	if(noOfNeighbors < minNeighbors)
 		softRestart = 1;
-	
 	return;
 }
 
@@ -261,22 +319,10 @@ void cleanUp(){
 	noOfConnections = 0;
 	msgTable.clear();
 	pthread_mutex_destroy(&msgTable_mutex);
-	pthread_mutex_destroy(&connection_mutex);logFile.close();
+	pthread_mutex_destroy(&connection_mutex);
 	if(initNeighborListFileAvailable)
 		remove(initNeighborListFileName);
 	remove(logFileName);
-	return;	
-}
-
-
-void removeChar( char *string, char letter ) {
-	for( unsigned int i = 0; i < strlen(string); i++ ){
-		if( string[i] == letter){
-			if(string[i+1] != '\0')
-				strcpy( string + i, string + i + 1 );
-			else
-				string[i] = '\0';
-		}
-	}
-
+	return;
+	
 }

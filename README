@@ -2,6 +2,7 @@
 =========================================================================================================================================										 
 Team Members:
 Sree Balaji Varadharajan -USC ID:4888549097
+Vibha V Uppin -USC ID:7893691436
 
 Files Attached:
 read_write.cpp
@@ -10,7 +11,7 @@ makefile
 sv_node.h
 utilities.cpp
 common.h
-README.txt
+README
 
 
 Design and Compilation:

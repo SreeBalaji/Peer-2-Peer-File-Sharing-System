@@ -158,13 +158,6 @@ struct statusResponse_struct{
 struct checkResponse_struct{
 	unsigned char UOID[20];
 };
-
-struct file_struct{
-	string name;
-	char keywords[20][100];
-	unsigned short TTL;
-
-};
 struct message_struct{
 	char s_r_f;
 	friend ofstream & operator<<(ofstream &, const message_struct &);
@@ -205,6 +198,7 @@ struct connection_struct{
 	struct statusResponse_struct statusResponseMsg;
 	struct checkResponse_struct checkResponseMsg;
 	
+	double timestamp;
 	unsigned int keepAliveTimeOut;
 };
 
@@ -276,13 +270,15 @@ extern unsigned char *getUOID(unsigned char *,unsigned char *,unsigned char *,un
 extern char *getNodeInstanceID();
 extern bool timeIsUp();
 extern bool thePacketIsDuplicate(struct commonHeader_struct);
+extern void forwardThisPacket(int,struct connection_struct);
+extern bool UOIDCompare(unsigned char *,unsigned char *,int);
 extern char *printUOID(unsigned char *);
 extern char *myWriteByte(unsigned char);
 extern char myWrite4Bits(unsigned char);
+extern double secSinceLastMessage();
 extern bool nodesAreNeighbors(int ,int);
 extern void readInitFile();
 extern void cleanUp();
-extern void removeChar(char *, char);
 //extern bool distanceCompare(const joinResponse_struct, const joinResponse_struct);
 
 

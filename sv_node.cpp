@@ -1,6 +1,6 @@
 #include "sv_node.h"
 
-unsigned int neighborsNotAvailable = 0;
+
 bool distanceCompare(const joinResponse_struct& first, const joinResponse_struct& second)
 {
   if (first.distance < second.distance)
@@ -29,7 +29,7 @@ void shutdown(){
 		for(i=0;i<noOfBeacons;i++){
 			if(port != beacon_nodes[i].port && !client_killed[i]){
 				//printf(" SHUTDOWN : Client %d (Thread ID : %d) still alive, sending SIGALRM\n",i,client[i]);
-				raise(SIGALRM);break;
+				pthread_kill(client[i],SIGALRM);
 			}
 			//pthread_cond_signal(&clientConnect_cond[i]);
 		}
@@ -245,7 +245,7 @@ void *timerThread(void *s){
 		pthread_mutex_lock(&connection_mutex);
 		for(unsigned int i=0;i<noOfConnections;i++){
 			connections[i].keepAliveTimeOut++;
-			printf(" READ THREAD - Connection %d : timeout %d %s:%d\n",i,connections[i].keepAliveTimeOut,connections[i].hostname,connections[i].port);
+			//printf(" READ THREAD - Connection %d : timeout %d \n",i,connections[i].keepAliveTimeOut);
 			if(connections[i].keepAliveTimeOut == keepAliveTimeOut/2){
 				
 				getUOID((unsigned char *)getNodeInstanceID(),(unsigned char *)"msg",cHeader.UOID,20);
@@ -281,7 +281,7 @@ void *timerThread(void *s){
 					cHeader.msgType = (unsigned char)CKRQ;
 					cHeader.TTL = (char)TTL;
 					cHeader.dataLength = 0;
-					printf(" TIMER THREAD : Number of available connections : %d Timeout : %d %s:%d\n",noOfConnections,keepAliveTimeOut, connections[0].hostname,connections[0].port);
+					//printf(" TIMER THREAD : Number of available connections : %d\n",noOfConnections);
 					for(j = 0;j<noOfConnections;j++){
 						sendProcedure(j);
 						
@@ -523,10 +523,9 @@ void *clientThread(void *argS){
 	
 	
 	while(connect(sock,(struct sockaddr *)&server_addr,sizeof(struct sockaddr)) == -1)
-    {
-		if(!iAmABeacon){neighborsNotAvailable++;
-			return NULL;}
-			
+	{
+		if(!(iAmABeacon || initNeighborListFileAvailable))
+			return NULL;
 		if(timeIsUp() || client_killed[arg->ID] == true){
 			close(sock);
 			//printf(" CLIENT THREAD %d : Terminating for port %d\n",arg->ID,beacon_nodes[arg->ID].port);
@@ -710,8 +709,6 @@ void *userInputThread(void *s){
 	char *uInput = new char[50];
 	char *tempInput = new char[50];
 	char *temp = new char[50];
-	char *tempCategories[10];
-	char *temp1 = new char[50];
 	struct commonHeader_struct cHeader;
 	struct statusRequest_struct statusRequestMsg;
 	unsigned int i = 0;
@@ -748,11 +745,10 @@ void *userInputThread(void *s){
 		fflush(stdout);
 		int rc = select (FD_SETSIZE,&set, NULL, NULL,NULL);
 		if(rc == EINTR)
-			continue;
+			break;
 		gets(uInput);
 		strcpy(tempInput,uInput);
 		temp = strtok(uInput," ");
-		
 		if(temp != NULL){
 			if(!strcmp(temp,"shutdown")){
 				shutdown();
@@ -798,48 +794,10 @@ void *userInputThread(void *s){
 				}
 				else if(!strcmp(temp,"files")){
 				}
-				else{
-					printf(" servant:%d > Invalid command \n",port);
-				}
-			}
-			else if(!strcmp(temp,"store")){
-				struct file_struct fileEntry;
-				temp = strtok(NULL," ");
-				
-				if(temp != NULL){				// Filename
-					temp = strtok(NULL," ");	//TTL
-					if(temp != NULL){
-						string s;
-						int i = 0,j=0;
-						tempCategories[i] = strtok(NULL," ");
-						while(tempCategories[i] != NULL){
-							printf(" Cat : %s \n",tempCategories[i]);
-							i++;
-							tempCategories[i] = strtok(NULL," ");
-						}
-						int noOfCategories = i;
-						i = 0,j=0;
-						printf(" Keywords : \n");
-						while(j<noOfCategories){
-							temp1 = strtok(tempCategories[j],"=");
-							j++;
-							sprintf(fileEntry.keywords[i],"%s",temp1);
-							printf("%s \n",fileEntry.keywords[i]);
-							temp1 = strtok(NULL,"\0");
-							removeChar(temp1,'\"');
-							i++;
-							sprintf(fileEntry.keywords[i],"%s",temp1);
-							printf("%s \n",fileEntry.keywords[i]);
-							i++;
-						}
-					}
-				
-				}
 			}
 		}
-		else{
+		else
 			printf(" servant:%d > Invalid command \n",port);
-		}
 	}
 	return NULL;
 			
@@ -887,7 +845,6 @@ int main(unsigned int argc,char **argv){
 	sigaddset (&mask, SIGPIPE);
     sigaddset (&mask, SIGUSR2);
     sigaddset (&mask, SIGUSR1);
-	sigaddset (&mask, SIGALRM);
 	//sigaddset (&mask, SIGINT);
 	if(pthread_sigmask(SIG_BLOCK, &mask, NULL) != 0)
 		printf("\n Error blocking signal from main thread");	
@@ -899,9 +856,12 @@ int main(unsigned int argc,char **argv){
 			strcpy(ini_filename,argv[i]);
 	}
 	
+	ifstream fp;
+	fp.open(ini_filename,ios::in|ios::binary);
+	
+	noOfBeacons=0;
+	
 	while(1){
-		ifstream fp;
-		fp.open(ini_filename,ios::in|ios::binary);
 		
 		reset = false;
 		iAmABeacon = false;
@@ -1054,7 +1014,11 @@ int main(unsigned int argc,char **argv){
 			
 			//printf(" MAIN THREAD : available neighbors \n");
 			//for(i = 0;i<noOfNeighbors;i++)
-			//	printf("%s : %d \n",neighbor_nodes[i].hostname,neighbor_nodes[i].port);			
+			//	printf("%s : %d \n",neighbor_nodes[i].hostname,neighbor_nodes[i].port);
+			if(softRestart){
+				cleanUp();
+				continue;
+			}				
 		}
 		
 		if(timeIsUp()){
@@ -1073,7 +1037,6 @@ int main(unsigned int argc,char **argv){
 						printf("\n\tPthread creation failed");
 						return 0;
 					}
-					
 					pthread_join(client[i],NULL);
 					
 					if(initNeighborListFileAvailable && noOfNeighbors >= initNeighbors)
@@ -1082,17 +1045,18 @@ int main(unsigned int argc,char **argv){
 				
 				if(timeIsUp() || i == noOfBeacons )
 					break;
-					
 				initNeighborListFile.open(initNeighborListFileName);
-		
-		
-				if(initNeighborListFile.is_open()){initNeighborListFileAvailable = true;
-					readInitFile();}
+				
+				if(initNeighborListFile.is_open())
+					readInitFile();
 			}
+			//printf(" MAIN THREAD : no of neighbors : %d \n",noOfNeighbors);
 			
-			
-			
-			
+			if(softRestart){
+				cleanUp();
+				softRestart=0;
+				continue;
+			}
 			
 			for(i = 0;i<noOfNeighbors;i++){
 				argForClientThread[i].ID = i;
@@ -1108,8 +1072,6 @@ int main(unsigned int argc,char **argv){
 				}
 				//printf(" MAIN THREAD : Created client thread ID : %d \n",client[i]);
 			}
-			for(i = 0;i<noOfNeighbors;i++)pthread_join(client[i],NULL);
-			if(neighborsNotAvailable == noOfNeighbors){cleanUp();softRestart=0;continue;}
 			
 		}
 		else{											// || Or I have init_neighbor_list file 

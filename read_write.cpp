@@ -107,6 +107,8 @@ void *tempReadThread(void *arg){
 			return NULL;
 		}
 		
+		connections[argForThread->ID].timestamp = secSinceLastMessage();
+		
 		//printf(" READ THREAD - Connection %d : Timestamp %f \n",argForThread->ID,connections[argForThread->ID].timestamp);
 		pthread_mutex_lock(&msgTable_mutex);
 		
@@ -259,6 +261,9 @@ void *readThread(void *arg){
 			return NULL;
 		}
 		
+		connections[argForThread->ID].timestamp = secSinceLastMessage();
+		
+		//printf(" READ THREAD - Connection %d : Timestamp %f \n",argForThread->ID,connections[argForThread->ID].timestamp);
 		pthread_mutex_lock(&msgTable_mutex);
 		
 		if(thePacketIsDuplicate(cHeader)){
