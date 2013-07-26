@@ -30,12 +30,6 @@ A Peer-to-Peer File Sharing System
 For part (1), To demonstrate that you can handle join, hello, keepalive, notify, check, and status messages, as well as the formation of the SERVANT network and complete logging for the above message types. The only user commands a node must handle are the shutdown and the status neighbors commands.
 For part (2), To demonstrate the you have implemented the whole spec. Since part (2) depends on part (1), you should try to get part (1) done as solid as possible.
 
-To make part (2) less dependent on part (1), it is not required that you have join and check working. Moreover, if the NoCheck=1 is specified in a node's startup configuration file, the node should disable its join and check mechanisms completely.
-
- 
-FAQ
-The part (1) and part (2) FAQ pages should be considered under constant construction. They will be modified through out the semester. If you have questions about the final project, please check the FAQ pages first because the answer you are looking for may be posted there already.
- 
 Introduction
 In this project, each student will build a distributed file sharing system using peer-to-peer technology. This system is referred to as the SERVANT and it is composed of a collection of nodes. Each node is part server and part client (conceptually, we will refer them as the server side and the client side of a node). A user can interact with the client side of a node via a commandline interface in order to perform various tasks within the SERVANT system. For example, a user can:
 store a file into the SERVANT (not necessarily just on the server side of this particular SERVANT node, i.e., the file gets replicated probabilistically)
